@@ -153,6 +153,7 @@ if uploaded_file is not None:
 
         # Output as stream
         pdf_buffer = BytesIO()
+        pdf_output = pdf.output(dest='S').encode('latin1')
         pdf.output(pdf_buffer)
         pdf_buffer.seek(0)
 
