@@ -6,7 +6,7 @@ import json
 import time
 
 # === CONFIG ===
-API_KEY = "YOUR_API_KEY_HERE"  # <-- 🔒 Replace this with your AbuseIPDB API key
+API_KEY = "7fd4c5eba9c28f0b846f1f8e3ae013380bf4af60ec50f865d0163d2431b9bd8474caef849e8393a4"  # <-- 🔒 Replace this with your AbuseIPDB API key
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 TOP_N = 30  # Number of top IPs to check
 
