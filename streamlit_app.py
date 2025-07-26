@@ -71,44 +71,46 @@ if uploaded_file is not None:
 
 
     # --- API Enrichment ---
-    st.subheader("🌐 Enrich Top IPs with AbuseIPDB")
+st.subheader("🌐 Enrich Top Malicious IPs with AbuseIPDB")
 
-    if 'Destination IP' not in df.columns:
-        st.error("❌ 'Destination IP' column is missing from the dataset.")
-    else:
-        if st.button("🔍 Run IP Reputation Check (Top 30)"):
-            ip_list = df['Destination IP'].value_counts().head(TOP_N).index.tolist()
-            results = {}
+if 'Source IP' not in df.columns:
+    st.error("❌ 'Source IP' column is missing from the dataset.")
+else:
+    if st.button("🔍 Run IP Reputation Check on Top Malicious IPs"):
+        # Filter only malicious rows
+        malicious_df = df[df['Label'] != 'BENIGN']
+        ip_list = malicious_df['Source IP'].value_counts().head(TOP_N).index.tolist()
+        results = {}
 
-            with st.spinner("⏳ Querying AbuseIPDB..."):
-                for ip in ip_list:
-                    try:
-                        response = requests.get(
-                            ABUSEIPDB_URL,
-                            headers={"Key": API_KEY, "Accept": "application/json"},
-                            params={"ipAddress": ip, "maxAgeInDays": 90, "verbose": True}
-                        )
-                        if response.status_code == 200:
-                            results[ip] = response.json()
-                        else:
-                            results[ip] = {"error": f"Status {response.status_code}", "reason": response.text}
-                        time.sleep(1)  # To respect rate limits
-                    except Exception as e:
-                        results[ip] = {"error": str(e)}
+        with st.spinner("⏳ Querying AbuseIPDB..."):
+            for ip in ip_list:
+                try:
+                    response = requests.get(
+                        ABUSEIPDB_URL,
+                        headers={"Key": API_KEY, "Accept": "application/json"},
+                        params={"ipAddress": ip, "maxAgeInDays": 90, "verbose": True}
+                    )
+                    if response.status_code == 200:
+                        results[ip] = response.json()
+                    else:
+                        results[ip] = {"error": f"Status {response.status_code}", "reason": response.text}
+                    time.sleep(1)
+                except Exception as e:
+                    results[ip] = {"error": str(e)}
 
-                # Display results in expandable boxes
-                for ip, data in results.items():
-                    with st.expander(f"IP: {ip}"):
-                        st.json(data)
+            # Display results in Streamlit
+            for ip, data in results.items():
+                with st.expander(f"IP: {ip}"):
+                    st.json(data)
 
-                # Save to JSON in memory
-                json_str = json.dumps(results, indent=4)
-                st.download_button(
-                    label="📥 Download Results as JSON",
-                    data=json_str,
-                    file_name="api_enriched_threats.json",
-                    mime="application/json"
-                )
+            # Download as JSON
+            json_str = json.dumps(results, indent=4)
+            st.download_button(
+                label="📥 Download Enrichment Results (JSON)",
+                data=json_str,
+                file_name="malicious_ip_enrichment.json",
+                mime="application/json"
+            )
 
 else:
     st.info("👆 Please upload a CSV file to get started.")
