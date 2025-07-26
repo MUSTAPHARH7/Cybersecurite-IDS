@@ -111,6 +111,3 @@ else:
                 file_name="malicious_ip_enrichment.json",
                 mime="application/json"
             )
-
-else:
-    st.info("👆 Please upload a CSV file to get started.")
