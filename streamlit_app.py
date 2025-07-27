@@ -8,7 +8,7 @@ from fpdf import FPDF
 from io import BytesIO
 
 # === CONFIG ===
-API_KEY = "7fd4c5eba9c28f0b846f1f8e3ae013380bf4af60ec50f865d0163d2431b9bd8474caef849e8393a4"  # Replace with your valid API key
+API_KEY = "7fd4c5eba9c28f0b846f1f8e3ae013380bf4af60ec50f865d0163d2431b9bd8474caef849e8393a4"
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 TOP_N = 30
 
@@ -28,13 +28,11 @@ if uploaded_file is not None:
     else:
         filtered_df = df
 
-    # --- Traffic by Protocol ---
     st.subheader("📊 Traffic by Protocol (Total vs Malicious)")
     grouped = filtered_df.groupby(['Protocol', 'Label']).size().reset_index(name='Count')
     fig1 = px.bar(grouped, x='Protocol', y='Count', color='Label', barmode='group')
     st.plotly_chart(fig1, use_container_width=True)
 
-    # --- Top Malicious IPs ---
     st.subheader("🚨 Top Malicious IPs")
     malicious_df = df[df['Label'] != 'BENIGN']
     if ip_query:
@@ -44,14 +42,12 @@ if uploaded_file is not None:
     fig2 = px.bar(top_ips, x='Source IP', y='Count')
     st.plotly_chart(fig2, use_container_width=True)
 
-    # --- Detection Rate Pie ---
     st.subheader("📈 Detection Rate (Benign vs Malicious)")
     rate = filtered_df['Label'].value_counts(normalize=True).reset_index()
     rate.columns = ['Label', 'Percentage']
     fig3 = px.pie(rate, values='Percentage', names='Label')
     st.plotly_chart(fig3, use_container_width=True)
 
-    # --- Intrusion Timeline ---
     st.subheader("📆 Intrusion Events Over Time")
     intrusions = df[df['Label'] != 'BENIGN']
     if ip_query:
@@ -62,15 +58,12 @@ if uploaded_file is not None:
     fig4 = px.line(time_df, x='Timestamp', y='Count')
     st.plotly_chart(fig4, use_container_width=True)
 
-    # --- Search Results Table ---
     if ip_query:
         st.subheader(f"🔍 Search Results for '{ip_query}'")
         result_df = filtered_df[['Timestamp', 'Source IP', 'Protocol', 'Label']]
         st.dataframe(result_df.head(10))
 
-    # --- API Enrichment ---
     st.subheader("🌐 Enrich Top IPs with AbuseIPDB")
-
     if 'Destination IP' not in df.columns:
         st.error("❌ 'Destination IP' column is missing from the dataset.")
     else:
@@ -98,7 +91,6 @@ if uploaded_file is not None:
                     with st.expander(f"IP: {ip}"):
                         st.json(data)
 
-                # Save JSON for download
                 json_str = json.dumps(results, indent=4)
                 st.download_button(
                     label="📥 Download Results as JSON",
@@ -107,21 +99,15 @@ if uploaded_file is not None:
                     mime="application/json"
                 )
 
-    # --- Generate PDF Report ---
-    st.subheader("📝 Generate Summary Report (PDF)")
-
-       st.subheader("📝 Generate Enhanced PDF Report")
-
+    st.subheader("📝 Generate Enhanced PDF Report")
     if st.button("📄 Generate PDF Report"):
         pdf = FPDF()
         pdf.add_page()
 
-        # Title
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "Cybersecurity Threat Report", ln=True, align='C')
         pdf.ln(10)
 
-        # General Info
         total = len(df)
         malicious = len(df[df['Label'] != 'BENIGN'])
         benign = len(df[df['Label'] == 'BENIGN'])
@@ -137,7 +123,6 @@ if uploaded_file is not None:
         pdf.cell(0, 10, f"🚨 Malicious Records: {malicious} ({malicious_pct:.2f}%)", ln=True)
         pdf.ln(5)
 
-        # Top 5 Protocols
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "📡 Top 5 Protocols", ln=True)
         pdf.set_font("Arial", '', 12)
@@ -146,7 +131,6 @@ if uploaded_file is not None:
             pdf.cell(0, 10, f"{proto}: {count} packets", ln=True)
         pdf.ln(5)
 
-        # Top 5 Malicious Source IPs
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, "🚨 Top 5 Malicious Source IPs", ln=True)
         pdf.set_font("Arial", '', 12)
@@ -155,7 +139,6 @@ if uploaded_file is not None:
             pdf.cell(0, 10, f"{ip}: {count} times", ln=True)
         pdf.ln(5)
 
-        # Top 5 Destination IPs
         if 'Destination IP' in df.columns:
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(0, 10, "🎯 Top 5 Destination IPs", ln=True)
@@ -164,7 +147,6 @@ if uploaded_file is not None:
             for ip, count in top_dest.items():
                 pdf.cell(0, 10, f"{ip}: {count} hits", ln=True)
 
-        # Output as PDF
         pdf_output = pdf.output(dest='S').encode('latin1')
         pdf_buffer = BytesIO(pdf_output)
 
