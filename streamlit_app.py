@@ -110,42 +110,69 @@ if uploaded_file is not None:
     # --- Generate PDF Report ---
     st.subheader("📝 Generate Summary Report (PDF)")
 
+       st.subheader("📝 Generate Enhanced PDF Report")
+
     if st.button("📄 Generate PDF Report"):
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "Cybersecurity Report", ln=True)
 
-        # Basic stats
+        # Title
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "Cybersecurity Threat Report", ln=True, align='C')
+        pdf.ln(10)
+
+        # General Info
         total = len(df)
         malicious = len(df[df['Label'] != 'BENIGN'])
         benign = len(df[df['Label'] == 'BENIGN'])
+        malicious_pct = (malicious / total) * 100 if total > 0 else 0
+
+        time_min = str(df['Timestamp'].min())
+        time_max = str(df['Timestamp'].max())
 
         pdf.set_font("Arial", '', 12)
-        pdf.ln(10)
-        pdf.cell(0, 10, f"Total Records: {total}", ln=True)
-        pdf.cell(0, 10, f"Benign Records: {benign}", ln=True)
-        pdf.cell(0, 10, f"Malicious Records: {malicious}", ln=True)
-
-        # Top 5 protocols
+        pdf.cell(0, 10, f"📅 Time Range: {time_min} to {time_max}", ln=True)
+        pdf.cell(0, 10, f"🧾 Total Records: {total}", ln=True)
+        pdf.cell(0, 10, f"✅ Benign Records: {benign}", ln=True)
+        pdf.cell(0, 10, f"🚨 Malicious Records: {malicious} ({malicious_pct:.2f}%)", ln=True)
         pdf.ln(5)
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Top 5 Protocols:", ln=True)
-        top_protocols = df['Protocol'].value_counts().head(5)
-        pdf.set_font("Arial", '', 12)
-        for proto, count in top_protocols.items():
-            pdf.cell(0, 10, f"{proto}: {count} occurrences", ln=True)
 
-        # Output as BytesIO for Streamlit download
+        # Top 5 Protocols
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "📡 Top 5 Protocols", ln=True)
+        pdf.set_font("Arial", '', 12)
+        top_protocols = df['Protocol'].value_counts().head(5)
+        for proto, count in top_protocols.items():
+            pdf.cell(0, 10, f"{proto}: {count} packets", ln=True)
+        pdf.ln(5)
+
+        # Top 5 Malicious Source IPs
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "🚨 Top 5 Malicious Source IPs", ln=True)
+        pdf.set_font("Arial", '', 12)
+        top_malicious_ips = malicious_df['Source IP'].value_counts().head(5)
+        for ip, count in top_malicious_ips.items():
+            pdf.cell(0, 10, f"{ip}: {count} times", ln=True)
+        pdf.ln(5)
+
+        # Top 5 Destination IPs
+        if 'Destination IP' in df.columns:
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, "🎯 Top 5 Destination IPs", ln=True)
+            pdf.set_font("Arial", '', 12)
+            top_dest = df['Destination IP'].value_counts().head(5)
+            for ip, count in top_dest.items():
+                pdf.cell(0, 10, f"{ip}: {count} hits", ln=True)
+
+        # Output as PDF
         pdf_output = pdf.output(dest='S').encode('latin1')
         pdf_buffer = BytesIO(pdf_output)
 
         st.download_button(
             label="📥 Download PDF Report",
             data=pdf_buffer,
-            file_name="cybersecurity_report.pdf",
+            file_name="enhanced_cybersecurity_report.pdf",
             mime="application/pdf"
         )
-
 else:
     st.info("👆 Please upload a CSV file to get started.")
