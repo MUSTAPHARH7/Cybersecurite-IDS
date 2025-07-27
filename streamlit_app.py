@@ -120,7 +120,7 @@ if uploaded_file is not None:
         pdf.cell(200, 10, "Dataset Summary:", ln=True)
         pdf.set_font("Arial", size=12)
         pdf.cell(200, 10, f"Total Records: {len(df)}", ln=True)
-        pdf.cell(200, 10, f"Total Malicious: {len(df[df['Label'] != 'BENIGN'])}", ln=True)
+        pdf.cell(200, 10, f"Total Malicious: {len(df[df['Label'] != '0'])}", ln=True)
 
         pdf.ln(5)
         pdf.set_font("Arial", "B", 12)
