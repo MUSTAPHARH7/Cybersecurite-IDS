@@ -65,13 +65,16 @@ if uploaded_file is not None:
         st.dataframe(result_df.head(10))
 
     # === API Enrichment ===
-    st.subheader("🌐 Enrich Top IPs with AbuseIPDB")
+   # === ABUSEIPDB API ENRICHMENT ===
+    st.subheader("🌐 Enrich Top Malicious IPs with AbuseIPDB")
 
-    if 'Destination IP' not in df.columns:
-        st.error("❌ 'Destination IP' column is missing from the dataset.")
+    if 'Source IP' not in df.columns:
+        st.error("❌ 'Source IP' column is missing from the dataset.")
     else:
-        if st.button("🔍 Run IP Reputation Check (Top 30)"):
-            ip_list = df['Destination IP'].value_counts().head(TOP_N).index.tolist()
+        if st.button("🔍 Run IP Reputation Check on Top Malicious IPs"):
+            # Filter top malicious IPs
+            malicious_df = df[df['Label'] != 'BENIGN']
+            ip_list = malicious_df['Source IP'].value_counts().head(TOP_N).index.tolist()
             results = {}
 
             with st.spinner("⏳ Querying AbuseIPDB..."):
@@ -86,21 +89,22 @@ if uploaded_file is not None:
                             results[ip] = response.json()
                         else:
                             results[ip] = {"error": f"Status {response.status_code}", "reason": response.text}
-                        time.sleep(1)
+                        time.sleep(1)  # Respect rate limits
                     except Exception as e:
                         results[ip] = {"error": str(e)}
 
+                # Display results in expandable boxes
                 for ip, data in results.items():
                     with st.expander(f"IP: {ip}"):
                         st.json(data)
 
+                # Save results as downloadable JSON
                 json_str = json.dumps(results, indent=4)
                 st.download_button(
-                    label="📥 Download Results as JSON",
+                    label="📥 Download Enrichment Results (JSON)",
                     data=json_str,
-                    file_name="api_enriched_threats.json",
+                    file_name="malicious_ip_enrichment.json",
                     mime="application/json"
-                )
 
     # === Generate PDF Report ===
     st.subheader("📝 Generate PDF Report")
