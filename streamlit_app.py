@@ -4,6 +4,7 @@ import plotly.express as px
 import requests
 import json
 import time
+from fpdf import FPDF
 
 # === CONFIG ===
 API_KEY = "7fd4c5eba9c28f0b846f1f8e3ae013380bf4af60ec50f865d0163d2431b9bd8474caef849e8393a4"  # <-- 🔒 Replace this with your AbuseIPDB API key
