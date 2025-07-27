@@ -6,15 +6,17 @@ import json
 import time
 from fpdf import FPDF
 from io import BytesIO
+import datetime
 
 # === CONFIG ===
-API_KEY = "7fd4c5eba9c28f0b846f1f8e3ae013380bf4af60ec50f865d0163d2431b9bd8474caef849e8393a4"
+API_KEY = "7fd4c5eba9c28f0b846f1f8e3ae013380bf4af60ec50f865d0163d2431b9bd8474caef849e8393a4"  # Replace with your real API key
 ABUSEIPDB_URL = "https://api.abuseipdb.com/api/v2/check"
 TOP_N = 30
 
 st.set_page_config(page_title="Cybersecurity Dashboard", layout="wide")
 st.title("🔐 Threat Intelligence Dashboard + API Enrichment")
 
+# File uploader
 uploaded_file = st.file_uploader("📤 Upload your CSV file", type="csv")
 
 if uploaded_file is not None:
@@ -22,7 +24,6 @@ if uploaded_file is not None:
     df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
 
     ip_query = st.text_input("🔎 Search IP/domain/subnet", "")
-
     if ip_query:
         filtered_df = df[df['Source IP'].astype(str).str.contains(ip_query, na=False)]
     else:
@@ -63,7 +64,9 @@ if uploaded_file is not None:
         result_df = filtered_df[['Timestamp', 'Source IP', 'Protocol', 'Label']]
         st.dataframe(result_df.head(10))
 
+    # === API Enrichment ===
     st.subheader("🌐 Enrich Top IPs with AbuseIPDB")
+
     if 'Destination IP' not in df.columns:
         st.error("❌ 'Destination IP' column is missing from the dataset.")
     else:
@@ -99,62 +102,49 @@ if uploaded_file is not None:
                     mime="application/json"
                 )
 
-    st.subheader("📝 Generate Enhanced PDF Report")
-    if st.button("📄 Generate PDF Report"):
+    # === Generate PDF Report ===
+    st.subheader("📝 Generate PDF Report")
+
+    if st.button("📄 Create Report"):
         pdf = FPDF()
         pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 10, "Cybersecurity Threat Report", ln=True, align="C")
+        pdf.set_font("Arial", size=12)
 
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "Cybersecurity Threat Report", ln=True, align='C')
         pdf.ln(10)
+        pdf.cell(200, 10, f"Report Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
 
-        total = len(df)
-        malicious = len(df[df['Label'] != 'BENIGN'])
-        benign = len(df[df['Label'] == 'BENIGN'])
-        malicious_pct = (malicious / total) * 100 if total > 0 else 0
-
-        time_min = str(df['Timestamp'].min())
-        time_max = str(df['Timestamp'].max())
-
-        pdf.set_font("Arial", '', 12)
-        pdf.cell(0, 10, f"📅 Time Range: {time_min} to {time_max}", ln=True)
-        pdf.cell(0, 10, f"🧾 Total Records: {total}", ln=True)
-        pdf.cell(0, 10, f"✅ Benign Records: {benign}", ln=True)
-        pdf.cell(0, 10, f"🚨 Malicious Records: {malicious} ({malicious_pct:.2f}%)", ln=True)
         pdf.ln(5)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(200, 10, "Dataset Summary:", ln=True)
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, f"Total Records: {len(df)}", ln=True)
+        pdf.cell(200, 10, f"Total Malicious: {len(df[df['Label'] != 'BENIGN'])}", ln=True)
 
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "📡 Top 5 Protocols", ln=True)
-        pdf.set_font("Arial", '', 12)
-        top_protocols = df['Protocol'].value_counts().head(5)
-        for proto, count in top_protocols.items():
-            pdf.cell(0, 10, f"{proto}: {count} packets", ln=True)
         pdf.ln(5)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(200, 10, "Top 5 Malicious IPs:", ln=True)
+        pdf.set_font("Arial", size=12)
+        for i, row in top_ips.head(5).iterrows():
+            pdf.cell(200, 10, f"{row['Source IP']} - {row['Count']} detections", ln=True)
 
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "🚨 Top 5 Malicious Source IPs", ln=True)
-        pdf.set_font("Arial", '', 12)
-        top_malicious_ips = malicious_df['Source IP'].value_counts().head(5)
-        for ip, count in top_malicious_ips.items():
-            pdf.cell(0, 10, f"{ip}: {count} times", ln=True)
         pdf.ln(5)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(200, 10, "Detection Breakdown:", ln=True)
+        for i, row in rate.iterrows():
+            pdf.cell(200, 10, f"{row['Label']}: {row['Percentage']*100:.2f}%", ln=True)
 
-        if 'Destination IP' in df.columns:
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "🎯 Top 5 Destination IPs", ln=True)
-            pdf.set_font("Arial", '', 12)
-            top_dest = df['Destination IP'].value_counts().head(5)
-            for ip, count in top_dest.items():
-                pdf.cell(0, 10, f"{ip}: {count} hits", ln=True)
-
-        pdf_output = pdf.output(dest='S').encode('latin1')
-        pdf_buffer = BytesIO(pdf_output)
+        # Export to BytesIO
+        pdf_bytes = pdf.output(dest='S').encode('latin1', 'ignore')
+        pdf_buffer = BytesIO(pdf_bytes)
 
         st.download_button(
             label="📥 Download PDF Report",
             data=pdf_buffer,
-            file_name="enhanced_cybersecurity_report.pdf",
+            file_name="cybersecurity_report.pdf",
             mime="application/pdf"
         )
+
 else:
     st.info("👆 Please upload a CSV file to get started.")
