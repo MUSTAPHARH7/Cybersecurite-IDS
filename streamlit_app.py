@@ -64,23 +64,15 @@ if uploaded_file is not None:
     else:
         st.info("Required columns for this chart are missing: 'Protocol' and/or 'Label'.")
 
-    # === TOP MALICIOUS IPS ===
+    # --- Top Malicious IPs ---
     st.subheader("🚨 Top Malicious IPs")
-    if 'Label' in df.columns and 'Source IP' in df.columns:
-        malicious_df = df[df['Label'] != 'BENIGN']
-        if ip_query and 'Source IP' in malicious_df.columns:
-            malicious_df = malicious_df[malicious_df['Source IP'].astype(str).str.contains(ip_query, na=False)]
-        if not malicious_df.empty:
-            top_ips = malicious_df['Source IP'].value_counts().nlargest(10).reset_index()
-            top_ips.columns = ['Source IP', 'Count']
-            fig2 = px.bar(top_ips, x='Source IP', y='Count')
-            st.plotly_chart(fig2, use_container_width=True)
-        else:
-            top_ips = pd.DataFrame(columns=['Source IP', 'Count'])
-            st.info("No malicious IPs found in the current view.")
-    else:
-        top_ips = pd.DataFrame(columns=['Source IP', 'Count'])
-        st.info("Required columns for this chart are missing: 'Source IP' and/or 'Label'.")
+    malicious_df = df[df['Label'] != 'BENIGN']
+    if ip_query:
+        malicious_df = malicious_df[malicious_df['Source IP'].astype(str).str.contains(ip_query, na=False)]
+    top_ips = malicious_df['Source IP'].value_counts().nlargest(10).reset_index()
+    top_ips.columns = ['Source IP', 'Count']
+    fig2 = px.bar(top_ips, x='Source IP', y='Count')
+    st.plotly_chart(fig2, use_container_width=True)
 
     # === DETECTION RATE PIE CHART ===
     st.subheader("📈 Detection Rate (Benign vs Malicious)")
