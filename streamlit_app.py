@@ -1,122 +1,66 @@
 import pandas as pd
+import streamlit as st
 import plotly.express as px
-from dash import Dash, dcc, html, Input, Output
 
-# Load dataset
-df = pd.read_csv('dashboard_data.csv')
+st.set_page_config(page_title="Cybersecurity Dashboard", layout="wide")
+st.title("🔐 Threat Intelligence Dashboard")
 
-# Preprocess Timestamp
-df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
+# File uploader
+uploaded_file = st.file_uploader("📤 Upload your CSV file", type="csv")
 
-# Create the Dash app
-app = Dash(__name__)
-app.title = "Cybersecurity Dashboard"
-
-# Layout definition
-app.layout = html.Div([
-    html.H1("Threat Intelligence Dashboard"),
+# If a file is uploaded, load it
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
 
     # Search bar
-    dcc.Input(
-        id="ip-search",
-        type="text",
-        placeholder="Search IP/domain/subnet",
-        debounce=True,
-        style={'marginBottom': '20px', 'width': '50%'}
-    ),
+    ip_query = st.text_input("🔎 Search IP/domain/subnet", "")
 
-    # Graphs
-    dcc.Graph(id="traffic-by-protocol"),
-    dcc.Graph(id="top-malicious-ips"),
-    dcc.Graph(id="detection-rate"),
-    dcc.Graph(id="intrusion-time-series"),
-
-    # Search Results Section
-    html.Div(id='search-results')
-])
-
-# Traffic by Protocol
-@app.callback(
-    Output('traffic-by-protocol', 'figure'),
-    Input('ip-search', 'value')
-)
-def update_traffic_by_protocol(ip_query):
-    filtered_df = df if not ip_query else df[df['Source IP'].astype(str).str.contains(ip_query, na=False)]
-    grouped = filtered_df.groupby(['Protocol', 'Label']).size().reset_index(name='Count')
-    return px.bar(
-        grouped, x='Protocol', y='Count', color='Label', barmode='group',
-        title='Traffic by Protocol (Total vs Malicious)'
-    )
-
-# Top Malicious IPs
-@app.callback(
-    Output('top-malicious-ips', 'figure'),
-    Input('ip-search', 'value')
-)
-def update_top_ips(ip_query):
-    filtered_df = df[df['Label'] != 'BENIGN']
+    # Filtered data
     if ip_query:
-        filtered_df = filtered_df[filtered_df['Source IP'].astype(str).str.contains(ip_query, na=False)]
-    top_ips = filtered_df['Source IP'].value_counts().nlargest(10).reset_index()
-    top_ips.columns = ['Source IP', 'Count']
-    return px.bar(
-        top_ips, x='Source IP', y='Count', title='Top Malicious IPs'
-    )
+        filtered_df = df[df['Source IP'].astype(str).str.contains(ip_query, na=False)]
+    else:
+        filtered_df = df
 
-# Detection Rate Pie Chart
-@app.callback(
-    Output('detection-rate', 'figure'),
-    Input('ip-search', 'value')
-)
-def update_detection_rate(ip_query):
-    filtered_df = df if not ip_query else df[df['Source IP'].astype(str).str.contains(ip_query, na=False)]
+    # --- Traffic by Protocol ---
+    st.subheader("📊 Traffic by Protocol (Total vs Malicious)")
+    grouped = filtered_df.groupby(['Protocol', 'Label']).size().reset_index(name='Count')
+    fig1 = px.bar(grouped, x='Protocol', y='Count', color='Label', barmode='group')
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # --- Top Malicious IPs ---
+    st.subheader("🚨 Top Malicious IPs")
+    malicious_df = df[df['Label'] != 'BENIGN']
+    if ip_query:
+        malicious_df = malicious_df[malicious_df['Source IP'].astype(str).str.contains(ip_query, na=False)]
+    top_ips = malicious_df['Source IP'].value_counts().nlargest(10).reset_index()
+    top_ips.columns = ['Source IP', 'Count']
+    fig2 = px.bar(top_ips, x='Source IP', y='Count')
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # --- Detection Rate Pie Chart ---
+    st.subheader("📈 Detection Rate (Benign vs Malicious)")
     rate = filtered_df['Label'].value_counts(normalize=True).reset_index()
     rate.columns = ['Label', 'Percentage']
-    return px.pie(
-        rate, values='Percentage', names='Label', title='Detection Rate (Benign vs Malicious)'
-    )
+    fig3 = px.pie(rate, values='Percentage', names='Label')
+    st.plotly_chart(fig3, use_container_width=True)
 
-# Time-Series Intrusion Chart
-@app.callback(
-    Output('intrusion-time-series', 'figure'),
-    Input('ip-search', 'value')
-)
-def update_time_series(ip_query):
-    filtered_df = df[df['Label'] != 'BENIGN']
+    # --- Intrusion Events Over Time ---
+    st.subheader("📆 Intrusion Events Over Time")
+    intrusions = df[df['Label'] != 'BENIGN']
     if ip_query:
-        filtered_df = filtered_df[filtered_df['Source IP'].astype(str).str.contains(ip_query, na=False)]
-    time_df = filtered_df.dropna(subset=['Timestamp']).groupby(
-        filtered_df['Timestamp'].dt.floor('H')
+        intrusions = intrusions[intrusions['Source IP'].astype(str).str.contains(ip_query, na=False)]
+    time_df = intrusions.dropna(subset=['Timestamp']).groupby(
+        intrusions['Timestamp'].dt.floor('H')
     ).size().reset_index(name='Count')
-    return px.line(
-        time_df, x='Timestamp', y='Count', title='Intrusion Events Over Time'
-    )
+    fig4 = px.line(time_df, x='Timestamp', y='Count')
+    st.plotly_chart(fig4, use_container_width=True)
 
-# Search Results Display
-@app.callback(
-    Output('search-results', 'children'),
-    Input('ip-search', 'value')
-)
-def display_search_results(ip_query):
-    if not ip_query:
-        return html.P("")
+    # --- Search Results Table ---
+    if ip_query:
+        st.subheader(f"🔍 Search Results for '{ip_query}'")
+        result_df = filtered_df[['Timestamp', 'Source IP', 'Protocol', 'Label']]
+        st.dataframe(result_df.head(10))
 
-    matches = df[df['Source IP'].astype(str).str.contains(ip_query, na=False)]
-
-    return html.Div([
-        html.H4(f"Search Results for '{ip_query}': {len(matches)} matching entries"),
-        html.Table([
-            html.Tr([html.Th(col) for col in ['Timestamp', 'Source IP', 'Protocol', 'Label']])
-        ] + [
-            html.Tr([
-                html.Td(str(matches.iloc[i]['Timestamp'])),
-                html.Td(matches.iloc[i]['Source IP']),
-                html.Td(matches.iloc[i]['Protocol']),
-                html.Td(matches.iloc[i]['Label'])
-            ]) for i in range(min(len(matches), 10))  # limit to first 10 matches
-        ])
-    ])
-
-# Run the server
-if __name__ == '__main__':
-    app.run(debug=True)
+else:
+    st.warning("📁 Please upload a CSV file to get started.")
