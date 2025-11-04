@@ -3,8 +3,5 @@ pandas
 plotly
 requests
 fpdf
-scikit-learn
-joblib
-numpy
-jinja2
-dash
+
+
